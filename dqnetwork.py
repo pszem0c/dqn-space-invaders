@@ -10,7 +10,7 @@ class DQNetwork:
         with tf.variable_scope(name):
             self.inputs_ = tf.placeholder(tf.float32, [None, *state_size], name="inputs")
             self.actions_ = tf.placeholder(tf.float32, [None, self.action_size], name="actions")
-            self.targetQ = tf.placehodler(tf.float32, [None], name="targetQ")
+            self.targetQ = tf.placeholder(tf.float32, [None], name="targetQ")
 
             """ 1st ConvNet: CNN, ELU """
             self.conv1 = tf.layers.conv2d(inputs = self.inputs_,
@@ -32,4 +32,29 @@ class DQNetwork:
                     name="conv2d")
             self.conv2_out = tf.nn.elu(self.conv2, name="conv2_out")
 
+            """ 3rd ConvNet: CNN, ELU """
+            self.conv3 = tf.layers.conv2d(inputs = self.conv2_out,
+                    filters = 64,
+                    kernel_size = [3,3],
+                    strides = [2,2],
+                    padding = "VALID",
+                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                    name="conv3d")
+            self.conv3_out = tf.nn.elu(self.conv3, name="conv3_out")
 
+            self.flatten = tf.contrib.layers.flatten(self.conv3_out)
+
+            self.fc = tf.layers.dense(inputs = self.flatten,
+                    units=512,
+                    activation = tf.nn.elu,
+                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                    name="fc1")
+
+            self.output = tf.layers.dense(inputs = self.fc,
+                    kernel_initializer=tf.contrib.layers.xavier_initializer_conv2d(),
+                    units=self.action_size,
+                    activation=None)
+            
+            self.Q = tf.reduce_sum(tf.multiply(self.output, self.actions_))
+            self.loss = tf.reduce_mean(tf.square(self.targetQ - self.Q))
+            self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
